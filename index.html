@@ -946,10 +946,14 @@ function showNightPassScreen() {
     return;
   }
   const p = G.nightAliveList[G.nightPlayerIdx];
+  console.log('Night player:', p.name, 'idx:', p.idx, 'isWolf:', G.players[p.idx].isWolf);
   showPass(`${p.name} さんにスマホを渡してください`, () => {
+    console.log('Callback for:', p.name, 'isWolf:', G.players[p.idx].isWolf);
     if (G.players[p.idx].isWolf) {
+      console.log('Showing night action (wolf)');
       showNightAction();
     } else {
+      console.log('Showing dummy (villager)');
       showNightDummy();
     }
   });
