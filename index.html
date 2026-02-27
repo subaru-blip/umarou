@@ -301,10 +301,7 @@ p{line-height:1.7;color:var(--dim);font-weight:500;font-size:1rem}
     <p class="section-label" style="margin-bottom:10px">プレイヤー人数</p>
     <div class="count-select" id="countSelect"></div>
   </div>
-  <div class="card" id="horseCountCard" style="display:none">
-    <p class="section-label" style="margin-bottom:10px">馬の頭数</p>
-    <div class="count-select" id="horseCountSelect"></div>
-  </div>
+
   <div class="player-inputs" id="playerInputs"></div>
   <button class="btn green" id="startBtn" disabled onclick="startGame()">ゲーム開始 🏇</button>
   <button class="rules-btn" onclick="toggleRules()">📖 ルール</button>
@@ -496,7 +493,8 @@ const G = {
   nightSelected: -1,
   round: 1,
   passCallback: null,
-  nightKillTarget: -1
+  nightKillTarget: -1,
+  runoffCandidates: null
 };
 
 // 競馬枠色: 1白,2黒,3赤,4青,5黄,6緑,7橙,8桃
@@ -520,25 +518,12 @@ function init() {
     b.onclick = () => selectCount(i);
     sel.appendChild(b);
   }
-  // 馬の頭数セレクト
-  const hs = document.getElementById('horseCountSelect');
-  for (let i = 4; i <= 8; i++) {
-    const b = document.createElement('button');
-    b.className = 'count-btn' + (i === 6 ? ' selected' : '');
-    b.textContent = i;
-    b.onclick = () => selectHorseCount(i);
-    hs.appendChild(b);
-  }
-}
 
-function selectHorseCount(n) {
-  G.numHorses = n;
-  document.querySelectorAll('#horseCountSelect .count-btn').forEach(b => b.classList.toggle('selected', b.textContent == n));
 }
 
 function selectCount(n) {
   document.querySelectorAll('#countSelect .count-btn').forEach(b => b.classList.toggle('selected', b.textContent == n));
-  document.getElementById('horseCountCard').style.display = 'block';
+  G.numHorses = n;
   const c = document.getElementById('playerInputs');
   c.innerHTML = '';
   for (let i = 0; i < n; i++) {
@@ -580,7 +565,12 @@ function startGame() {
   const inputs = document.querySelectorAll('#playerInputs input');
   G.players = [...inputs].map(i => ({name: i.value.trim(), ticket: 0, alive: true, isWolf: false}));
   
-  const tickets = G.players.map(() => Math.floor(Math.random() * G.numHorses) + 1);
+  // 1人1頭: シャッフルして配布
+  const tickets = Array.from({length: G.numHorses}, (_, i) => i + 1);
+  for (let i = tickets.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [tickets[i], tickets[j]] = [tickets[j], tickets[i]];
+  }
   G.players.forEach((p, i) => p.ticket = tickets[i]);
   
   G.currentTicketIdx = 0;
@@ -743,6 +733,7 @@ function startVote() {
   setPhase('🗳️ 投票', 'vote');
   G.votes = {};
   G.selectedVote = -1;
+  G.runoffCandidates = null;
   const alive = G.players.map((p,i) => ({...p, idx: i})).filter(p => p.alive);
   G.currentVoterIdx = 0;
   G.aliveList = alive;
@@ -781,25 +772,39 @@ function confirmVote() {
   const voter = G.aliveList[G.currentVoterIdx];
   G.votes[voter.idx] = G.selectedVote;
   G.currentVoterIdx++;
-  if (G.currentVoterIdx < G.aliveList.length) {
-    showPass(`次は ${G.aliveList[G.currentVoterIdx].name} さんに渡してください`, showVoter);
+  
+  // 決選投票モードかどうかで分岐
+  if (G.runoffCandidates) {
+    if (G.currentVoterIdx < G.aliveList.length) {
+      showPass(`次は ${G.aliveList[G.currentVoterIdx].name} さんに渡してください`, showRunoffVoter);
+    } else {
+      tallyVotes(G.runoffCandidates);
+    }
   } else {
-    tallyVotes();
+    if (G.currentVoterIdx < G.aliveList.length) {
+      showPass(`次は ${G.aliveList[G.currentVoterIdx].name} さんに渡してください`, showVoter);
+    } else {
+      tallyVotes();
+    }
   }
 }
 
-function tallyVotes() {
+function tallyVotes(runoffCandidates) {
   show('s-voteResult');
   setPhase('📊 結果発表', '');
+  
+  // runoffCandidates: 決選投票の場合は対象者リスト、通常はnull
+  const displayList = runoffCandidates || G.aliveList;
+  
   const counts = {};
-  G.aliveList.forEach(p => counts[p.idx] = 0);
+  displayList.forEach(p => counts[p.idx] = 0);
   Object.values(G.votes).forEach(t => { if (counts[t] !== undefined) counts[t]++; });
   
   const c = document.getElementById('voteResultBars');
   c.innerHTML = '';
   const maxV = Math.max(...Object.values(counts), 1);
   
-  G.aliveList.forEach(p => {
+  displayList.forEach(p => {
     const cnt = counts[p.idx] || 0;
     const d = document.createElement('div');
     d.className = 'result-bar';
@@ -811,15 +816,17 @@ function tallyVotes() {
   });
   
   const maxCount = Math.max(...Object.values(counts));
-  const exiled = G.aliveList.filter(p => counts[p.idx] === maxCount);
+  const exiled = displayList.filter(p => counts[p.idx] === maxCount);
   
   const res = document.getElementById('exileResult');
   const btn = document.getElementById('afterVoteBtn');
   
   if (exiled.length > 1) {
-    res.innerHTML = `<div class="card"><p style="color:var(--accent);font-size:1.1rem;font-weight:700">同票のため追放なし！</p></div>`;
-    btn.textContent = '夜フェイズへ 🌙';
-    btn.onclick = () => startNight();
+    // 同票 → 決選投票
+    const names = exiled.map(p => p.name).join('、');
+    res.innerHTML = `<div class="card"><p style="color:var(--accent);font-size:1.1rem;font-weight:700">⚔️ 同票: ${names}</p><p style="color:var(--dim);font-size:.95rem;margin-top:8px">決選投票を行います</p></div>`;
+    btn.textContent = '決選投票へ ⚔️';
+    btn.onclick = () => startRunoff(exiled);
   } else {
     const ex = exiled[0];
     if (ex.isWolf) {
@@ -839,6 +846,54 @@ function tallyVotes() {
         btn.onclick = () => startNight();
       }
     }
+  }
+}
+
+// ===== 決選投票 =====
+function startRunoff(candidates) {
+  setPhase('⚔️ 決選投票', 'vote');
+  G.votes = {};
+  G.selectedVote = -1;
+  G.currentVoterIdx = 0;
+  G.runoffCandidates = candidates;
+  showRunoffVoter();
+}
+
+function showRunoffVoter() {
+  if (G.currentVoterIdx >= G.aliveList.length) {
+    tallyVotes(G.runoffCandidates);
+    return;
+  }
+  show('s-vote');
+  G.selectedVote = -1;
+  const voter = G.aliveList[G.currentVoterIdx];
+  document.getElementById('votePlayerName').innerHTML = `<span style="color:var(--red);font-size:.9rem;font-weight:700">⚔️ 決選投票</span><br><span style="color:var(--dim);font-size:.85rem">同票のため決選投票を行います</span><br><span style="color:var(--accent);font-size:1.15rem;font-weight:800">${voter.name}</span> さんの投票`;
+  const c = document.getElementById('voteOptions');
+  c.innerHTML = '';
+  G.runoffCandidates.forEach((p) => {
+    const wakuColor = wakuColors[p.idx % 8];
+    const d = document.createElement('div');
+    d.className = 'vote-option';
+    d.innerHTML = `<div class="vote-avatar" style="background:${wakuColor}"><span style="font-size:.9rem;color:${wakuTextColors[p.idx%8]};font-weight:900">${p.idx+1}</span></div><span>${p.name}</span>`;
+    d.onclick = () => {
+      document.querySelectorAll('#voteOptions .vote-option').forEach(o => o.classList.remove('selected'));
+      d.classList.add('selected');
+      G.selectedVote = p.idx;
+      document.getElementById('voteConfirmBtn').disabled = false;
+    };
+    c.appendChild(d);
+  });
+  document.getElementById('voteConfirmBtn').disabled = true;
+}
+
+function confirmRunoffVote() {
+  const voter = G.aliveList[G.currentVoterIdx];
+  G.votes[voter.idx] = G.selectedVote;
+  G.currentVoterIdx++;
+  if (G.currentVoterIdx < G.aliveList.length) {
+    showPass(`次は ${G.aliveList[G.currentVoterIdx].name} さんに渡してください`, showRunoffVoter);
+  } else {
+    tallyVotes(G.runoffCandidates);
   }
 }
 
