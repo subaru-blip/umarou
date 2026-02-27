@@ -540,12 +540,15 @@ function checkReady() {
 function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+  document.getElementById('app').scrollTo(0, 0);
 }
 
 function showPass(text, cb) {
   G.passCallback = cb;
   document.getElementById('passText').textContent = text;
   document.getElementById('s-pass').style.display = 'flex';
+  window.scrollTo(0, 0);
 }
 
 function continueAfterPass() {
@@ -946,14 +949,10 @@ function showNightPassScreen() {
     return;
   }
   const p = G.nightAliveList[G.nightPlayerIdx];
-  console.log('Night player:', p.name, 'idx:', p.idx, 'isWolf:', G.players[p.idx].isWolf);
   showPass(`${p.name} さんにスマホを渡してください`, () => {
-    console.log('Callback for:', p.name, 'isWolf:', G.players[p.idx].isWolf);
     if (G.players[p.idx].isWolf) {
-      console.log('Showing night action (wolf)');
       showNightAction();
     } else {
-      console.log('Showing dummy (villager)');
       showNightDummy();
     }
   });
