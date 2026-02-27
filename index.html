@@ -952,7 +952,6 @@ function showNightPassScreen() {
   const isWolf = G.players[p.idx].isWolf;
   showPass(`${p.name} さんにスマホを渡してください`, () => {
     if (isWolf) {
-      alert('DEBUG: ' + p.name + ' は馬狼です。追放画面を表示します。');
       showNightAction();
     } else {
       showNightDummy();
@@ -994,7 +993,7 @@ function showNightDummy() {
   show('s-nightDummy');
   const btn = document.getElementById('nightDummyBtn');
   btn.disabled = true;
-  setTimeout(() => { btn.disabled = false; }, 3000);
+  setTimeout(() => { btn.disabled = false; }, 5000);
 }
 
 function nightDummyDone() {
