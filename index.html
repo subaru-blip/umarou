@@ -23,7 +23,7 @@
   --waku1:#ffffff;--waku2:#1a1a1a;--waku3:#e74c3c;--waku4:#3498db;
   --waku5:#f1c40f;--waku6:#2ecc71;--waku7:#e67e22;--waku8:#ff69b4;
 }
-html,body{height:100%;font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP','Yu Gothic',sans-serif;font-weight:600;background:var(--bg);color:var(--text);overflow:hidden;-webkit-tap-highlight-color:transparent;font-size:17px}
+html,body{min-height:100%;font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP','Yu Gothic',sans-serif;font-weight:600;background:var(--bg);color:var(--text);overflow-x:hidden;overflow-y:auto;-webkit-tap-highlight-color:transparent;font-size:17px;-webkit-overflow-scrolling:touch}
 
 /* ===== 背景パターン（馬シルエット風） ===== */
 body::before{
@@ -56,10 +56,10 @@ body::after{
 .phase-badge.vote{background:rgba(234,179,8,.15);color:#eab308;border-color:rgba(234,179,8,.3)}
 .phase-badge.danger{background:rgba(231,76,60,.15);color:var(--red);border-color:rgba(231,76,60,.3)}
 
-#app{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;padding-top:60px;text-align:center;position:relative;overflow-y:auto;z-index:1}
+#app{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px;padding-top:70px;padding-bottom:40px;text-align:center;position:relative;overflow-y:auto;-webkit-overflow-scrolling:touch;z-index:1}
 
 /* ===== SCREENS ===== */
-.screen{display:none;flex-direction:column;align-items:center;justify-content:flex-start;width:100%;max-width:420px;min-height:70vh;gap:16px;animation:fadeIn .4s;padding:8px 0 24px;position:relative}
+.screen{display:none;flex-direction:column;align-items:center;justify-content:flex-start;width:100%;max-width:420px;gap:16px;animation:fadeIn .4s;padding:8px 0 40px;position:relative}
 .screen.active{display:flex}
 
 /* 各画面の背景装飾 */
