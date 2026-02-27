@@ -401,27 +401,16 @@ p{line-height:1.7;color:var(--dim);font-weight:500;font-size:1rem}
   <button class="btn" id="afterVoteBtn"></button>
 </div>
 
-<!-- NIGHT PHASE (スマホ回し方式) -->
+<!-- NIGHT PHASE (全員スマホ回し方式) -->
 <div class="screen" id="s-night">
   <div style="font-size:3.5rem">🌙</div>
   <h2>夜が来ました</h2>
   <p style="font-size:1.15rem;color:var(--text);line-height:2">全員、目を閉じてください。</p>
   <p style="color:var(--dim);font-size:1rem">準備ができたら下のボタンを押してください</p>
-  <button class="btn" onclick="nightWolfPrompt()" style="margin-top:8px">全員目を閉じた 🌙</button>
+  <button class="btn" onclick="startNightRound()" style="margin-top:8px">全員目を閉じた 🌙</button>
 </div>
 
-<!-- NIGHT: 馬狼呼びかけ -->
-<div class="screen" id="s-nightWolfCall">
-  <div style="font-size:3.5rem">🐺</div>
-  <h2 style="color:#8b9cf7">馬狼の方へ</h2>
-  <p style="font-size:1.15rem;color:var(--text);line-height:2">
-    馬狼の方、目を開けて<br>スマホを操作してください。
-  </p>
-  <p style="color:var(--dim);font-size:.95rem">他の人は目を閉じたままでいてください</p>
-  <button class="btn danger" onclick="showNightAction()" style="margin-top:8px">追放対象を選ぶ 🐺</button>
-</div>
-
-<!-- NIGHT ACTION -->
+<!-- NIGHT ACTION (馬狼用) -->
 <div class="screen" id="s-nightAction">
   <div style="font-size:2rem">🐺</div>
   <h2>馬狼の時間</h2>
@@ -430,13 +419,18 @@ p{line-height:1.7;color:var(--dim);font-weight:500;font-size:1rem}
   <button class="btn danger" id="nightKillBtn" disabled onclick="nightKill()">追放する</button>
 </div>
 
-<!-- NIGHT: 馬狼終了 -->
-<div class="screen" id="s-nightWolfDone">
+<!-- NIGHT DUMMY (村人用) -->
+<div class="screen" id="s-nightDummy">
   <div style="font-size:3.5rem">😴</div>
-  <h2 style="color:#8b9cf7">馬狼は目を閉じてください</h2>
-  <p style="font-size:1.15rem;color:var(--text);line-height:2">
-    全員、目を開けてください。
-  </p>
+  <h2>あなたは村人です</h2>
+  <p style="font-size:1.05rem;color:var(--dim);line-height:1.8">少し待ってから「完了」を押してください</p>
+  <button class="btn secondary" id="nightDummyBtn" disabled onclick="nightDummyDone()">完了</button>
+</div>
+
+<!-- NIGHT: 全員完了 -->
+<div class="screen" id="s-nightAllDone">
+  <div style="font-size:3.5rem">🌅</div>
+  <h2 style="color:#8b9cf7">全員、目を開けてください</h2>
   <button class="btn" onclick="showMorning()" style="margin-top:8px">朝の結果を見る 🌅</button>
 </div>
 
@@ -539,7 +533,7 @@ function selectCount(n) {
 
 function checkReady() {
   const inputs = document.querySelectorAll('#playerInputs input');
-  const allFilled = inputs.length >= 2 && [...inputs].every(i => i.value.trim());
+  const allFilled = inputs.length >= 2;
   document.getElementById('startBtn').disabled = !allFilled;
 }
 
@@ -563,7 +557,7 @@ function continueAfterPass() {
 // ===== START GAME =====
 function startGame() {
   const inputs = document.querySelectorAll('#playerInputs input');
-  G.players = [...inputs].map(i => ({name: i.value.trim(), ticket: 0, alive: true, isWolf: false}));
+  G.players = [...inputs].map((inp, idx) => ({name: inp.value.trim() || `プレイヤー${idx+1}`, ticket: 0, alive: true, isWolf: false}));
   
   // 1人1頭: シャッフルして配布
   const tickets = Array.from({length: G.numHorses}, (_, i) => i + 1);
@@ -775,8 +769,8 @@ function confirmVote() {
   
   // 決選投票モードかどうかで分岐
   if (G.runoffCandidates) {
-    if (G.currentVoterIdx < G.aliveList.length) {
-      showPass(`次は ${G.aliveList[G.currentVoterIdx].name} さんに渡してください`, showRunoffVoter);
+    if (G.currentVoterIdx < G.runoffVoters.length) {
+      showPass(`次は ${G.runoffVoters[G.currentVoterIdx].name} さんに渡してください`, showRunoffVoter);
     } else {
       tallyVotes(G.runoffCandidates);
     }
@@ -856,18 +850,51 @@ function startRunoff(candidates) {
   G.selectedVote = -1;
   G.currentVoterIdx = 0;
   G.runoffCandidates = candidates;
+  // 候補者を投票者から除外
+  const candidateIdxs = candidates.map(c => c.idx);
+  G.runoffVoters = G.aliveList.filter(p => !candidateIdxs.includes(p.idx));
+  
+  // 投票者が0人の場合、ランダムで1人を処刑
+  if (G.runoffVoters.length === 0) {
+    const randomIdx = Math.floor(Math.random() * candidates.length);
+    const ex = candidates[randomIdx];
+    G.players[ex.idx].alive = false;
+    show('s-voteResult');
+    setPhase('📊 結果発表', '');
+    document.getElementById('voteResultBars').innerHTML = '';
+    const res = document.getElementById('exileResult');
+    const btn = document.getElementById('afterVoteBtn');
+    if (ex.isWolf) {
+      res.innerHTML = `<div class="card"><p style="font-size:1.1rem;color:var(--dim);margin-bottom:8px">全員が候補者のためランダム処刑</p><p style="font-size:1.2rem;animation:shake .5s"><span style="color:var(--red);font-weight:900">${G.players[ex.idx].name}</span> は<br>馬狼でした！🐺</p></div>`;
+      btn.textContent = '結果を見る 🏆';
+      btn.onclick = () => endGame(false);
+    } else {
+      res.innerHTML = `<div class="card"><p style="font-size:1.1rem;color:var(--dim);margin-bottom:8px">全員が候補者のためランダム処刑</p><p style="font-size:1.2rem">${G.players[ex.idx].name} は<br><span style="color:var(--green-light);font-weight:700">馬狼ではありませんでした</span></p></div>`;
+      const aliveCount = G.players.filter(p => p.alive).length;
+      const wolvesAlive = G.players.filter(p => p.alive && p.isWolf).length;
+      if (wolvesAlive >= aliveCount - wolvesAlive) {
+        btn.textContent = '結果を見る 🏆';
+        btn.onclick = () => endGame(true);
+      } else {
+        btn.textContent = '夜フェイズへ 🌙';
+        btn.onclick = () => startNight();
+      }
+    }
+    return;
+  }
+  
   showRunoffVoter();
 }
 
 function showRunoffVoter() {
-  if (G.currentVoterIdx >= G.aliveList.length) {
+  if (G.currentVoterIdx >= G.runoffVoters.length) {
     tallyVotes(G.runoffCandidates);
     return;
   }
   show('s-vote');
   G.selectedVote = -1;
-  const voter = G.aliveList[G.currentVoterIdx];
-  document.getElementById('votePlayerName').innerHTML = `<span style="color:var(--red);font-size:.9rem;font-weight:700">⚔️ 決選投票</span><br><span style="color:var(--dim);font-size:.85rem">同票のため決選投票を行います</span><br><span style="color:var(--accent);font-size:1.15rem;font-weight:800">${voter.name}</span> さんの投票`;
+  const voter = G.runoffVoters[G.currentVoterIdx];
+  document.getElementById('votePlayerName').innerHTML = `<span style="color:var(--red);font-size:.9rem;font-weight:700">⚔️ 決選投票</span><br><span style="color:var(--dim);font-size:.85rem">同票のため決選投票を行います（候補者は投票できません）</span><br><span style="color:var(--accent);font-size:1.15rem;font-weight:800">${voter.name}</span> さんの投票`;
   const c = document.getElementById('voteOptions');
   c.innerHTML = '';
   G.runoffCandidates.forEach((p) => {
@@ -897,15 +924,36 @@ function confirmRunoffVote() {
   }
 }
 
-// ===== NIGHT (スマホ回し方式) =====
+// ===== NIGHT (全員スマホ回し方式) =====
 function startNight() {
   show('s-night');
   setPhase('🌙 夜', 'night');
 }
 
-function nightWolfPrompt() {
-  show('s-nightWolfCall');
-  setPhase('🐺 馬狼の時間', 'danger');
+function startNightRound() {
+  // 生存者リストを作成し、順番にスマホを回す
+  G.nightAliveList = G.players.map((p,i) => ({...p, idx: i})).filter(p => p.alive);
+  G.nightPlayerIdx = 0;
+  G.nightKillTarget = -1;
+  setPhase('🌙 夜・スマホ回し', 'night');
+  showNightPassScreen();
+}
+
+function showNightPassScreen() {
+  if (G.nightPlayerIdx >= G.nightAliveList.length) {
+    // 全員完了
+    show('s-nightAllDone');
+    setPhase('🌅 朝', 'night');
+    return;
+  }
+  const p = G.nightAliveList[G.nightPlayerIdx];
+  showPass(`${p.name} さんにスマホを渡してください`, () => {
+    if (G.players[p.idx].isWolf) {
+      showNightAction();
+    } else {
+      showNightDummy();
+    }
+  });
 }
 
 function showNightAction() {
@@ -934,8 +982,20 @@ function showNightAction() {
 function nightKill() {
   G.nightKillTarget = G.nightSelected;
   G.players[G.nightSelected].alive = false;
-  show('s-nightWolfDone');
-  setPhase('🌙 夜', 'night');
+  G.nightPlayerIdx++;
+  showNightPassScreen();
+}
+
+function showNightDummy() {
+  show('s-nightDummy');
+  const btn = document.getElementById('nightDummyBtn');
+  btn.disabled = true;
+  setTimeout(() => { btn.disabled = false; }, 3000);
+}
+
+function nightDummyDone() {
+  G.nightPlayerIdx++;
+  showNightPassScreen();
 }
 
 function showMorning() {
