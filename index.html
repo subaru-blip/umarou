@@ -19,9 +19,9 @@
   --text:#e6edf3;
   --dim:#8b949e;
   --turf:#1a3d1a;
-  /* 競馬枠色 */
-  --waku1:#ffffff;--waku2:#1a1a1a;--waku3:#e74c3c;--waku4:#3498db;
-  --waku5:#f1c40f;--waku6:#2ecc71;--waku7:#e67e22;--waku8:#ff69b4;
+  /* プレイヤーカラー */
+  --waku1:#e74c3c;--waku2:#3498db;--waku3:#2ecc71;--waku4:#f1c40f;
+  --waku5:#9b59b6;--waku6:#e67e22;--waku7:#ff69b4;--waku8:#1abc9c;
 }
 html,body{min-height:100%;font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP','Yu Gothic',sans-serif;font-weight:600;background:var(--bg);color:var(--text);overflow-x:hidden;overflow-y:auto;-webkit-tap-highlight-color:transparent;font-size:17px;-webkit-overflow-scrolling:touch}
 
@@ -491,9 +491,9 @@ const G = {
   runoffCandidates: null
 };
 
-// 競馬枠色: 1白,2黒,3赤,4青,5黄,6緑,7橙,8桃
-const wakuColors = ['#ffffff','#1a1a1a','#e74c3c','#3498db','#f1c40f','#2ecc71','#e67e22','#ff69b4'];
-const wakuTextColors = ['#000','#fff','#fff','#fff','#000','#fff','#fff','#fff'];
+// プレイヤーカラー
+const wakuColors = ['#e74c3c','#3498db','#2ecc71','#f1c40f','#9b59b6','#e67e22','#ff69b4','#1abc9c'];
+const wakuTextColors = ['#fff','#fff','#fff','#000','#fff','#fff','#fff','#fff'];
 
 // Phase badge helper
 function setPhase(text, type) {
@@ -525,7 +525,7 @@ function selectCount(n) {
     const textColor = wakuTextColors[i % 8];
     const d = document.createElement('div');
     d.className = 'player-row';
-    d.innerHTML = `<div class="player-num" style="background:${color};color:${textColor};border:${color==='#ffffff'?'2px solid #555':'none'}">${i+1}</div><input class="input" placeholder="プレイヤー${i+1}" maxlength="10" oninput="checkReady()">`;
+    d.innerHTML = `<div class="player-num" style="background:${color};color:${textColor}">${i+1}</div><input class="input" placeholder="プレイヤー${i+1}" maxlength="10" oninput="checkReady()">`;
     c.appendChild(d);
   }
   checkReady();
@@ -595,9 +595,9 @@ function revealTicket() {
   document.getElementById('ticketRevealed').style.display = 'block';
   document.getElementById('ticketNumber').style.background = color;
   document.getElementById('ticketNumber').style.color = textColor;
-  document.getElementById('ticketNumber').style.border = color === '#ffffff' ? '3px solid #555' : 'none';
+  document.getElementById('ticketNumber').style.border = 'none';
   document.getElementById('ticketNumber').textContent = num;
-  document.getElementById('ticketLabel').textContent = `${num}番馬（${num}枠）`;
+  document.getElementById('ticketLabel').textContent = `${num}番馬`;
   document.getElementById('ticketLabel').style.color = color === '#ffffff' ? '#ccc' : color;
 }
 
@@ -677,7 +677,7 @@ function updateDaySurvivors() {
     const t = document.createElement('span');
     const wakuColor = wakuColors[i % 8];
     t.className = 'survivor-tag' + (p.alive ? '' : ' dead');
-    t.innerHTML = `<span class="waku-dot" style="background:${wakuColor};${wakuColor==='#ffffff'?'border-color:#555':''}"></span>${p.name}`;
+    t.innerHTML = `<span class="waku-dot" style="background:${wakuColor}"></span>${p.name}`;
     c.appendChild(t);
   });
 }
