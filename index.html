@@ -532,9 +532,8 @@ function selectCount(n) {
 }
 
 function checkReady() {
-  const inputs = document.querySelectorAll('#playerInputs input');
-  const allFilled = inputs.length >= 2;
-  document.getElementById('startBtn').disabled = !allFilled;
+  const count = document.querySelectorAll('#playerInputs input').length;
+  document.getElementById('startBtn').disabled = count < 2;
 }
 
 // ===== SCREEN NAV =====
